@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IGNIS — Login</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=Barlow:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body class="login-page">
+
+  <div class="login-box">
+    <div class="login-header">
+      <div class="login-logo">IGNIS</div>
+      <div class="login-sub">Firefighter Management System</div>
+    </div>
+
+    <div class="login-body">
+      <div class="login-error" id="login-error"></div>
+
+      <div class="form-group">
+        <label class="form-label">Username</label>
+        <input class="form-control" type="text" id="username"
+          placeholder="e.g. admin or alexandros" autocomplete="username" />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input class="form-control" type="password" id="password"
+          placeholder="Enter your password" autocomplete="current-password" />
+      </div>
+
+      <button class="btn btn-primary btn-lg btn-block" id="login-btn" onclick="handleLogin()">
+        Sign In →
+      </button>
+
+      <div class="login-hint">
+        Admin: <code>admin</code> / <code>admin2026</code><br />
+        Firefighters: first name / <code>ff</code> + ID (e.g. <code>ff1</code>)
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+  <!-- App scripts -->
+  <script src="js/firebase-config.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/auth.js"></script>
+
+  <script>
+    // If already signed in, skip the login screen
+    Auth.redirectIfLoggedIn();
+
+    // Allow Enter key to submit
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Enter') handleLogin();
+    });
+
+    async function handleLogin() {
+      const btn = document.getElementById('login-btn');
+      btn.textContent = 'Signing in…';
+      btn.disabled = true;
+
+      const result = await Auth.login(
+        document.getElementById('username').value,
+        document.getElementById('password').value
+      );
+
+      if (result.ok) {
+        window.location.href = 'dashboard.html';
+      } else {
+        const errEl = document.getElementById('login-error');
+        errEl.textContent = result.error;
+        errEl.classList.add('visible');
+        document.getElementById('password').value = '';
+        btn.textContent = 'Sign In →';
+        btn.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>

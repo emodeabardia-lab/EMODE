@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IGNIS — Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=Barlow:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+  <style>
+    /* Loading overlay */
+    #loading-overlay {
+      position: fixed; inset: 0; background: var(--ash);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      z-index: 999;
+    }
+    .loading-logo {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 64px; letter-spacing: 8px; color: var(--fire);
+      animation: pulse 1.5s infinite;
+    }
+    .loading-sub {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px; letter-spacing: 3px; color: var(--fog);
+      text-transform: uppercase; margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Loading overlay (shown while Firebase auth resolves) -->
+<div id="loading-overlay">
+  <div class="loading-logo">IGNIS</div>
+  <div class="loading-sub">Connecting to database…</div>
+</div>
+
+<div class="layout">
+
+  <!-- ── SIDEBAR ──────────────────────────────────────────── -->
+  <nav class="sidebar">
+    <div class="logo">
+      <div class="logo-title">IGNIS</div>
+      <div class="logo-sub">Fire Management System</div>
+    </div>
+
+    <div class="nav">
+      <div class="nav-section">
+        <span class="nav-label">Operations</span>
+        <button class="nav-item active" onclick="showSection('dashboard', this)">
+          <span class="icon">📊</span> Dashboard
+        </button>
+        <button class="nav-item" data-admin-only onclick="showSection('incidents', this)">
+          <span class="icon">🔥</span> Incidents
+        </button>
+        <button class="nav-item" data-admin-only onclick="showSection('units', this)">
+          <span class="icon">🚒</span> Units & Apparatus
+        </button>
+      </div>
+
+      <div class="nav-section" data-admin-only>
+        <span class="nav-label">Personnel</span>
+        <button class="nav-item" onclick="showSection('roster', this)">
+          <span class="icon">👥</span> Roster
+        </button>
+        <button class="nav-item" onclick="showSection('schedule', this)">
+          <span class="icon">📅</span> Schedule
+        </button>
+        <button class="nav-item" onclick="showSection('hours', this)">
+          <span class="icon">⏱️</span> Hours
+        </button>
+      </div>
+
+      <!-- Shown only to firefighter role -->
+      <div class="nav-section" data-ff-only style="display:none;">
+        <span class="nav-label">Operations</span>
+        <button class="nav-item" onclick="showSection('ff-incidents', this)">
+          <span class="icon">🔥</span> Incidents
+        </button>
+        <span class="nav-label">My Account</span>
+        <button class="nav-item" onclick="showSection('profile', this)">
+          <span class="icon">👤</span> My Profile
+        </button>
+      </div>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="user-info">
+        <div class="user-name" id="user-greeting">—</div>
+        <div class="user-role" id="user-role">—</div>
+      </div>
+      <button class="logout-btn" onclick="Auth.logout()" title="Log out">⏻</button>
+    </div>
+  </nav>
+
+  <!-- ── MAIN ─────────────────────────────────────────────── -->
+  <main class="main">
+
+    <div class="topbar">
+      <div class="page-title" id="pageTitle">DASHBOARD</div>
+      <div class="topbar-right">
+        <span class="alert-badge" id="alert-badge">🔥 — ACTIVE INCIDENTS</span>
+        <span class="time-display" id="clock">--:--:--</span>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- ═══ DASHBOARD ══════════════════════════════════════ -->
+      <section class="section active" id="section-dashboard">
+        <div class="stats-grid">
+          <div class="stat-card red">
+            <div class="stat-label">Active Incidents</div>
+            <div class="stat-value" id="stat-incidents">—</div>
+            <div class="stat-sub">Currently ongoing</div>
+            <div class="stat-icon">🔥</div>
+          </div>
+          <div class="stat-card green">
+            <div class="stat-label">On Duty Now</div>
+            <div class="stat-value" id="stat-onduty">—</div>
+            <div class="stat-sub">Deployed + active</div>
+            <div class="stat-icon">👷</div>
+          </div>
+          <div class="stat-card yellow">
+            <div class="stat-label">Units Available</div>
+            <div class="stat-value" id="stat-units">—</div>
+            <div class="stat-sub">Ready to dispatch</div>
+            <div class="stat-icon">🚒</div>
+          </div>
+          <div class="stat-card blue">
+            <div class="stat-label">Response Time</div>
+            <div class="stat-value">4.2</div>
+            <div class="stat-sub">avg minutes this week</div>
+            <div class="stat-icon">⏱️</div>
+          </div>
+        </div>
+
+        <div class="dashboard-grid">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">RECENT INCIDENTS</span>
+              <button class="card-action" data-admin-only
+                onclick="showSection('incidents', document.querySelector('[onclick*=incidents]'))">
+                View All
+              </button>
+            </div>
+            <div id="dashboard-incidents">
+              <div style="padding:20px;color:var(--fog);font-size:13px;">Loading…</div>
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:16px;">
+            <div class="card">
+              <div class="card-header"><span class="card-title">UNIT STATUS</span></div>
+              <div style="padding:12px 16px;" id="dashboard-units">
+                <div style="color:var(--fog);font-size:13px;">Loading…</div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header"><span class="card-title">TODAY'S SHIFT</span></div>
+              <div style="padding:14px 16px;">
+                <div class="shift-row">
+                  <span class="muted">On Duty / Deployed</span>
+                  <span style="color:var(--green);font-weight:600;" id="shift-on-duty">—</span>
+                </div>
+                <div class="shift-row">
+                  <span class="muted">In Training</span>
+                  <span style="color:var(--blue);font-weight:600;" id="shift-training">—</span>
+                </div>
+                <div class="shift-row">
+                  <span class="muted">On Leave</span>
+                  <span style="color:var(--yellow);font-weight:600;" id="shift-leave">—</span>
+                </div>
+                <div class="shift-row" style="margin-bottom:0;">
+                  <span class="muted">Off Duty</span>
+                  <span class="muted" style="font-weight:600;" id="shift-off">—</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══ INCIDENTS ═══════════════════════════════════════ -->
+      <section class="section" id="section-incidents">
+        <div class="toolbar">
+          <div class="toolbar-left">
+            <button class="btn btn-primary" data-admin-only onclick="openModal('new-incident')">＋ New Incident</button>
+            <div class="search-box">
+              <span class="search-icon">🔍</span>
+              <input type="text" placeholder="Search incidents…" oninput="filterIncidents(this.value)" />
+            </div>
+          </div>
+          <div class="toolbar-right">
+            <button class="btn btn-ghost btn-sm" onclick="filterIncidentStatus('all')">All</button>
+            <button class="btn btn-ghost btn-sm" onclick="filterIncidentStatus('active')">Active</button>
+            <button class="btn btn-ghost btn-sm" onclick="filterIncidentStatus('contained')">Contained</button>
+            <button class="btn btn-ghost btn-sm" onclick="filterIncidentStatus('resolved')">Resolved</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>ID</th><th>Type</th><th>Location</th><th>Severity</th><th>Units</th><th>Time</th><th>Status</th><th>Actions</th></tr>
+              </thead>
+              <tbody id="incidents-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══ UNITS ════════════════════════════════════════════ -->
+      <section class="section" id="section-units">
+        <div class="toolbar">
+          <button class="btn btn-primary" data-admin-only onclick="openModal('new-unit')">＋ Add Unit</button>
+        </div>
+        <div class="unit-grid" id="units-grid"></div>
+      </section>
+
+      <!-- ═══ ROSTER ═══════════════════════════════════════════ -->
+      <section class="section" id="section-roster">
+        <div class="toolbar">
+          <div class="toolbar-left">
+            <button class="btn btn-primary" data-admin-only onclick="openModal('new-ff')">＋ Add Firefighter</button>
+            <button class="btn btn-ghost" data-admin-only onclick="openCertManager()">⚙ Manage Certifications</button>
+            <div class="search-box">
+              <span class="search-icon">🔍</span>
+              <input type="text" placeholder="Search roster…" oninput="filterRoster(this.value)" />
+            </div>
+          </div>
+        </div>
+        <div id="roster-filters"></div>
+        <div class="card">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>#</th><th>Name</th><th>Rank</th><th>Unit</th><th>Licences</th><th>Certifications</th><th>Phone</th><th>Status</th><th>Actions</th></tr>
+              </thead>
+              <tbody id="roster-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══ SCHEDULE ══════════════════════════════════════════ -->
+      <section class="section" id="section-schedule">
+        <div class="toolbar">
+          <div class="toolbar-left">
+            <button class="btn btn-ghost">◀ Prev Week</button>
+            <button class="btn btn-ghost">Next Week ▶</button>
+          </div>
+          <div class="mono small muted">Week of March 16–22, 2026</div>
+        </div>
+        <div class="card" style="padding:20px;">
+          <div class="schedule-grid" id="schedule-grid"></div>
+        </div>
+        <div class="schedule-legend">
+          <div class="legend-item"><span class="legend-dot" style="background:rgba(40,199,111,.2);"></span>Day</div>
+          <div class="legend-item"><span class="legend-dot" style="background:rgba(61,169,252,.15);"></span>Night</div>
+          <div class="legend-item"><span class="legend-dot" style="background:rgba(255,184,48,.15);"></span>Training</div>
+          <div class="legend-item"><span class="legend-dot" style="background:rgba(58,58,63,.3);"></span>Off</div>
+        </div>
+      </section>
+
+      <!-- ═══ HOURS ════════════════════════════════════════════════ -->
+      <section class="section" id="section-hours">
+        <div class="toolbar">
+          <div style="font-family:var(--font-mono);font-size:12px;color:var(--fog);">
+            Live from Google Sheets — ΠΑΡΟΥΣΙΟΛΟΓΙΟ
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="loadHours()">↻ Refresh</button>
+        </div>
+        <div class="card">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Last Name</th>
+                  <th>Firefighter</th>
+                  <th>Hours Owed</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="hours-tbody">
+                <tr>
+                  <td colspan="4" style="text-align:center;padding:24px;color:var(--fog);">
+                    Click the section to load hours.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══ FF INCIDENTS ════════════════════════════════════════ -->
+      <section class="section" id="section-ff-incidents">
+        <div class="toolbar">
+          <div style="font-family:var(--font-mono);font-size:12px;color:var(--fog);">
+            ACTIVE INCIDENTS
+          </div>
+        </div>
+        <div id="ff-incidents-list">
+          <div style="padding:32px;text-align:center;color:var(--fog);">Loading...</div>
+        </div>
+      </section>
+
+      <!-- ═══ PROFILE ═══════════════════════════════════════════ -->
+      <section class="section" id="section-profile">
+        <div id="profile-content"></div>
+      </section>
+
+    </div><!-- /content -->
+  </main>
+</div><!-- /layout -->
+
+<!-- ── MODALS ──────────────────────────────────────────────── -->
+
+<!-- Add Firefighter -->
+<div class="modal-overlay" id="modal-new-ff">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">ADD FIREFIGHTER</span>
+      <button class="modal-close" onclick="closeModal('new-ff')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">First Name</label><input class="form-control" id="ff-first" placeholder="Nikolaos" /></div>
+        <div class="form-group"><label class="form-label">Last Name</label><input class="form-control" id="ff-last" placeholder="Papadopoulos" /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Rank</label>
+          <select class="form-control" id="ff-rank">
+            <option>Firefighter I</option><option>Firefighter II</option>
+            <option>Driver/Operator</option><option>Lieutenant</option>
+            <option>Captain</option><option>Battalion Chief</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Unit</label>
+          <select class="form-control" id="ff-unit">
+            <option>Engine 1</option><option>Engine 2</option>
+            <option>Ladder 1</option><option>Tanker 1</option><option>Rescue 1</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Phone</label><input class="form-control" id="ff-phone" placeholder="+30 210 000 0000" /></div>
+        <div class="form-group">
+          <label class="form-label">Status</label>
+          <select class="form-control" id="ff-status">
+            <option value="on-duty">On Duty</option><option value="off-duty">Off Duty</option>
+            <option value="training">Training</option><option value="leave">Leave</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group"><label class="form-label">Certifications</label><input class="form-control" id="ff-certs" placeholder="EMT, HazMat, Rope Rescue…" /></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('new-ff')">Cancel</button>
+      <button class="btn btn-primary" id="btn-add-ff" onclick="addFirefighter()">Add Firefighter</button>
+    </div>
+  </div>
+</div>
+
+<!-- Log Incident -->
+<div class="modal-overlay" id="modal-new-incident">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">LOG INCIDENT</span>
+      <button class="modal-close" onclick="closeModal('new-incident')">&#x2715;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Type</label>
+          <select class="form-control" id="inc-type">
+            <option>Structure Fire</option><option>Wildfire</option>
+            <option>Vehicle Accident</option><option>Gas Leak</option>
+            <option>HazMat</option><option>Rescue</option><option>Medical Assist</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Severity</label>
+          <select class="form-control" id="inc-severity">
+            <option value="critical">Critical</option><option value="high">High</option>
+            <option value="medium">Medium</option><option value="low">Low</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Location</label>
+        <input class="form-control" id="inc-location" placeholder="Street address or landmark" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Initial Units Dispatched</label>
+        <div id="inc-units-checkboxes" style="display:flex;gap:10px;flex-wrap:wrap;padding:12px;background:var(--ash);border:1px solid var(--soot);border-radius:6px;min-height:48px;">
+          <span class="muted small">Loading units...</span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Status</label>
+        <select class="form-control" id="inc-status">
+          <option value="active">Active</option>
+          <option value="contained">Contained</option>
+          <option value="resolved">Resolved</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('new-incident')">Cancel</button>
+      <button class="btn btn-primary" onclick="addIncident()">Log Incident</button>
+    </div>
+  </div>
+</div>
+
+<!-- Incident Manager Modal -->
+<div class="modal-overlay" id="modal-incident-manager">
+  <div class="modal" style="width:580px;max-width:95vw;">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="inc-manager-title">INCIDENT</div>
+        <div style="font-family:var(--font-mono);font-size:11px;color:var(--fog);margin-top:2px;" id="inc-manager-id"></div>
+      </div>
+      <button class="modal-close" onclick="closeModal('incident-manager')">&#x2715;</button>
+    </div>
+    <div class="modal-body" style="max-height:65vh;overflow-y:auto;">
+      <div class="form-group" style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+        <label class="form-label" style="margin:0;white-space:nowrap;">STATUS</label>
+        <select class="form-control" id="inc-manager-status" style="flex:1;" onchange="updateIncidentStatus()">
+          <option value="active">Active</option>
+          <option value="contained">Contained</option>
+          <option value="resolved">Resolved</option>
+        </select>
+      </div>
+      <div class="inc-manager-section">
+        <div class="inc-manager-label">UNITS AT SCENE</div>
+        <div id="inc-deployed-units"></div>
+      </div>
+      <div class="inc-manager-section">
+        <div class="inc-manager-label">DISPATCH ADDITIONAL UNITS</div>
+        <div id="inc-dispatch-units"></div>
+      </div>
+      <div class="inc-manager-section">
+        <div class="inc-manager-label">ACTIVITY LOG</div>
+        <div id="inc-activity-log"></div>
+      </div>
+
+      <div class="inc-manager-section" style="border-bottom:none;">
+        <div class="inc-manager-label" style="display:flex;justify-content:space-between;align-items:center;">
+          INCIDENT CHAT
+          <span class="muted small">Real-time</span>
+        </div>
+        <div id="chat-messages-manager"
+          style="height:200px;overflow-y:auto;background:var(--ash);border:1px solid var(--soot);border-radius:8px;padding:12px;margin-bottom:10px;">
+          <div class="muted small">Click to open chat...</div>
+        </div>
+        <button class="btn btn-primary btn-sm" id="open-chat-btn">💬 Open Full Chat</button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="closeModal('incident-manager')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Unit -->
+<div class="modal-overlay" id="modal-new-unit">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">ADD UNIT</span>
+      <button class="modal-close" onclick="closeModal('new-unit')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Unit Name</label><input class="form-control" id="unit-name" placeholder="Engine 3" /></div>
+        <div class="form-group">
+          <label class="form-label">Type</label>
+          <select class="form-control" id="unit-type">
+            <option>Pumper Truck</option><option>Aerial Ladder</option><option>Water Tanker</option>
+            <option>Rescue Unit</option><option>Command Vehicle</option><option>HazMat Unit</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Crew Capacity</label><input class="form-control" type="number" id="unit-capacity" value="5" min="1" /></div>
+        <div class="form-group">
+          <label class="form-label">Status</label>
+          <select class="form-control" id="unit-status">
+            <option value="available">Available</option>
+            <option value="deployed">Deployed</option>
+            <option value="maintenance">Maintenance</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('new-unit')">Cancel</button>
+      <button class="btn btn-primary" onclick="addUnit()">Add Unit</button>
+    </div>
+  </div>
+</div>
+
+<!-- Credentials Modal -->
+<div class="modal-overlay" id="modal-credentials">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">FIREFIGHTER ADDED</span>
+      <button class="modal-close" onclick="closeModal('credentials')">X</button>
+    </div>
+    <div class="modal-body">
+      <p style="color:var(--fog);font-size:13px;margin-bottom:20px;">
+        Account created successfully. Share these credentials with the firefighter.
+      </p>
+      <div style="background:var(--ash);border:1px solid var(--soot);border-radius:8px;padding:20px;">
+        <div style="margin-bottom:14px;">
+          <div class="form-label">FIREFIGHTER</div>
+          <div style="font-size:18px;font-weight:700;color:var(--white);" id="cred-name">-</div>
+        </div>
+        <div style="margin-bottom:14px;">
+          <div class="form-label">USERNAME</div>
+          <div style="font-family:var(--font-mono);font-size:16px;color:var(--ember);" id="cred-username">-</div>
+        </div>
+        <div>
+          <div class="form-label">PASSWORD</div>
+          <div style="font-family:var(--font-mono);font-size:16px;color:var(--green);" id="cred-password">-</div>
+        </div>
+      </div>
+      <p style="color:var(--fog);font-size:11px;font-family:var(--font-mono);margin-top:14px;">
+        The firefighter can change this password from their profile after first login.
+      </p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="copyCredentials()">Copy to Clipboard</button>
+      <button class="btn btn-primary" onclick="closeModal('credentials')">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- Cert Manager Modal -->
+<div class="modal-overlay" id="modal-cert-manager">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">MANAGE CERTIFICATIONS</span>
+      <button class="modal-close" onclick="closeModal('cert-manager')">X</button>
+    </div>
+    <div class="modal-body">
+      <p style="color:var(--fog);font-size:13px;margin-bottom:16px;">
+        Define the certification types that firefighters can select in their profile.
+      </p>
+      <div class="form-group" style="display:flex;gap:8px;">
+        <input class="form-control" type="text" id="new-cert-name" placeholder="e.g. HazMat Level 2" style="flex:1;" />
+        <button class="btn btn-primary" onclick="addCertType()">Add</button>
+      </div>
+      <div id="cert-list" style="margin-top:8px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="closeModal('cert-manager')">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- Chat Modal -->
+<div class="modal-overlay" id="modal-chat">
+  <div class="modal" style="width:520px;max-width:95vw;">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">💬 INCIDENT CHAT</div>
+        <div style="font-family:var(--font-mono);font-size:11px;color:var(--fog);margin-top:2px;" id="chat-modal-title"></div>
+      </div>
+      <button class="modal-close" onclick="closeChat()">&#x2715;</button>
+    </div>
+    <div class="modal-body" style="padding:0;">
+
+      <!-- Messages area -->
+      <div id="chat-messages"
+        style="height:360px;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;background:var(--ash);">
+      </div>
+
+      <!-- Input area -->
+      <div style="display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--soot);background:var(--smoke);">
+        <input
+          class="form-control"
+          type="text"
+          id="chat-input"
+          placeholder="Type a message..."
+          style="flex:1;"
+          maxlength="500"
+        />
+        <button class="btn btn-primary" id="chat-send-btn" onclick="sendChatMessage()">Send</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-container" id="toast-container"></div>
+
+<!-- ── SCRIPTS ─────────────────────────────────────────────── -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+<script src="js/firebase-config.js"></script>
+<script src="js/db.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/app.js"></script>
+
+</body>
+</html>

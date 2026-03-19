@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IGNIS — First-Time Setup</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=Barlow:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+  <style>
+    body { display:flex; align-items:flex-start; justify-content:center; padding:40px 16px; }
+    .setup-box { width:600px; max-width:100%; }
+    .setup-title { font-family:'Bebas Neue',sans-serif; font-size:48px; letter-spacing:6px; color:var(--fire); }
+    .setup-sub { font-family:'DM Mono',monospace; font-size:11px; letter-spacing:3px; color:var(--fog); text-transform:uppercase; margin-bottom:32px; }
+    .step { background:var(--smoke); border:1px solid var(--soot); border-radius:10px; padding:20px; margin-bottom:16px; }
+    .step-num { font-family:'Bebas Neue',sans-serif; font-size:12px; letter-spacing:2px; color:var(--fire); margin-bottom:4px; }
+    .step-title { font-size:15px; font-weight:700; color:var(--white); margin-bottom:8px; }
+    .step-desc { font-size:13px; color:var(--fog); line-height:1.6; }
+    .log-box { background:var(--ash); border:1px solid var(--soot); border-radius:6px; padding:16px; height:280px; overflow-y:auto; font-family:'DM Mono',monospace; font-size:12px; line-height:1.8; margin-top:16px; }
+    .log-ok   { color:var(--green); }
+    .log-err  { color:var(--fire); }
+    .log-info { color:var(--fog); }
+    .warning-box { background:rgba(255,184,48,.1); border:1px solid rgba(255,184,48,.3); border-radius:8px; padding:16px; margin-bottom:24px; font-size:13px; color:var(--yellow); line-height:1.6; }
+    code { background:var(--soot); padding:2px 6px; border-radius:3px; font-family:'DM Mono',monospace; font-size:11px; color:var(--light); }
+  </style>
+</head>
+<body>
+<div class="setup-box">
+  <div class="setup-title">IGNIS</div>
+  <div class="setup-sub">First-Time Setup Tool</div>
+
+  <div class="warning-box">
+    ⚠️ <strong>Run this page only once.</strong> It creates Firebase Auth accounts and seeds your Firestore database with initial data.
+    Running it again will attempt to re-create accounts that already exist (harmless, but noisy).
+    <br /><br />
+    Make sure you have filled in <code>js/firebase-config.js</code> with your Firebase project credentials before continuing.
+  </div>
+
+  <div class="step">
+    <div class="step-num">STEP 1 OF 1</div>
+    <div class="step-title">Create Accounts & Seed Database</div>
+    <div class="step-desc">
+      This will create the following Firebase Auth accounts and write all initial data to Firestore:
+      <br /><br />
+      • Admin account: <code>admin</code> / <code>admin2026</code><br />
+      • 10 firefighter accounts (username = first name, password = ff + id)<br />
+      • All firefighter records, incidents, units, and schedule in Firestore
+    </div>
+
+    <div style="margin-top:16px;display:flex;gap:10px;">
+      <button class="btn btn-primary btn-lg" id="run-btn" onclick="runSetup()">
+        Run Setup
+      </button>
+      <button class="btn btn-ghost btn-lg" onclick="window.location.href='index.html'">
+        Back to Login
+      </button>
+    </div>
+
+    <div class="log-box" id="log">
+      <span class="log-info">Ready. Press "Run Setup" to begin.</span>
+    </div>
+  </div>
+</div>
+
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+
+<script>
+// ─── Initial data ────────────────────────────────────────────────────────────
+
+const FIREFIGHTERS = [
+  { id:1,  first:'Alexandros', last:'Katsaros',     rank:'Captain',         unit:'Engine 1', phone:'+30 210 100 0001', status:'deployed', certs:'HazMat, EMT, Rope' },
+  { id:2,  first:'Dimitrios',  last:'Stavros',      rank:'Lieutenant',      unit:'Engine 1', phone:'+30 210 100 0002', status:'deployed', certs:'EMT, Wildland' },
+  { id:3,  first:'Nikos',      last:'Papadakis',    rank:'Firefighter II',  unit:'Engine 1', phone:'+30 210 100 0003', status:'deployed', certs:'EMT' },
+  { id:4,  first:'Eirini',     last:'Georgiadou',   rank:'Driver/Operator', unit:'Engine 2', phone:'+30 210 100 0004', status:'on-duty',  certs:'HazMat, EMT' },
+  { id:5,  first:'Petros',     last:'Nikolaou',     rank:'Firefighter I',   unit:'Engine 2', phone:'+30 210 100 0005', status:'on-duty',  certs:'EMT' },
+  { id:6,  first:'Stavros',    last:'Andreou',      rank:'Firefighter II',  unit:'Engine 2', phone:'+30 210 100 0006', status:'training', certs:'Rope Rescue' },
+  { id:7,  first:'Maria',      last:'Konstanti',    rank:'Captain',         unit:'Ladder 1', phone:'+30 210 100 0007', status:'deployed', certs:'EMT, HazMat' },
+  { id:8,  first:'Kostas',     last:'Dimitriou',    rank:'Driver/Operator', unit:'Ladder 1', phone:'+30 210 100 0008', status:'deployed', certs:'EMT' },
+  { id:9,  first:'Yiannis',    last:'Alexiou',      rank:'Firefighter I',   unit:'Tanker 1', phone:'+30 210 100 0009', status:'off-duty', certs:'Wildland' },
+  { id:10, first:'Sophia',     last:'Papageorgiou', rank:'Battalion Chief', unit:'Command',  phone:'+30 210 100 0010', status:'on-duty',  certs:'HazMat, EMT, NIMS' },
+];
+
+const INCIDENTS = [
+  { id:'INC-2026-0847', type:'Structure Fire',   location:'14 Kifisias Ave',   severity:'critical', units:['Engine 1','Ladder 1'], time:'09:14', status:'active',    createdAt: firebase.firestore.Timestamp.fromDate(new Date()) },
+  { id:'INC-2026-0846', type:'Wildfire',         location:'Northern Ridge',     severity:'high',     units:['Engine 2'],            time:'07:52', status:'active',    createdAt: firebase.firestore.Timestamp.fromDate(new Date(Date.now()-5*60000)) },
+  { id:'INC-2026-0845', type:'Vehicle Accident', location:'Attiki Odos Km 12', severity:'medium',   units:['Rescue 1'],            time:'06:30', status:'contained', createdAt: firebase.firestore.Timestamp.fromDate(new Date(Date.now()-10*60000)) },
+  { id:'INC-2026-0844', type:'Gas Leak',         location:'7 Ermou St',         severity:'low',      units:['Engine 1','Engine 2'], time:'02:10', status:'resolved',  createdAt: firebase.firestore.Timestamp.fromDate(new Date(Date.now()-20*60000)) },
+  { id:'INC-2026-0843', type:'Brush Fire',       location:'Hymettus Park',      severity:'medium',   units:['Engine 2'],            time:'Yesterday', status:'resolved', createdAt: firebase.firestore.Timestamp.fromDate(new Date(Date.now()-86400000)) },
+];
+
+const UNITS = [
+  { name:'Engine 1',  type:'Pumper Truck',    capacity:5, crew:3, status:'deployed'    },
+  { name:'Engine 2',  type:'Pumper Truck',    capacity:5, crew:4, status:'available'   },
+  { name:'Ladder 1',  type:'Aerial Ladder',   capacity:4, crew:3, status:'deployed'    },
+  { name:'Tanker 1',  type:'Water Tanker',    capacity:3, crew:0, status:'maintenance' },
+  { name:'Rescue 1',  type:'Rescue Unit',     capacity:4, crew:4, status:'available'   },
+  { name:'Command 1', type:'Command Vehicle', capacity:2, crew:2, status:'available'   },
+];
+
+const SCHEDULE = {
+  'Katsaros A.':   ['day','day','night','night','off','off','day'],
+  'Stavros D.':    ['night','night','off','day','day','training','off'],
+  'Papadakis N.':  ['day','off','day','day','night','night','off'],
+  'Georgiadou E.': ['off','day','day','off','day','day','night'],
+  'Nikolaou P.':   ['training','day','day','night','off','off','day'],
+  'Andreou S.':    ['night','off','off','day','day','night','night'],
+  'Konstanti M.':  ['day','day','off','training','day','day','off'],
+  'Dimitriou K.':  ['off','night','night','day','off','day','day'],
+};
+
+// ─── Logging helper ──────────────────────────────────────────────────────────
+
+function log(msg, type = 'info') {
+  const box  = document.getElementById('log');
+  const line = document.createElement('div');
+  line.className = `log-${type}`;
+  line.textContent = msg;
+  box.appendChild(line);
+  box.scrollTop = box.scrollHeight;
+}
+
+// ─── Create a single Firebase Auth user and their Firestore profile ──────────
+
+async function createUser(username, password, role, ffId, name) {
+  const email = `${username}@ignis.local`;
+  try {
+    // createUserWithEmailAndPassword signs you IN as the new user
+    const cred = await firebase.auth().createUserWithEmailAndPassword(email, password);
+    // Write the user profile to Firestore
+    await firebase.firestore().collection('users').doc(cred.user.uid).set({ role, ffId, name, email });
+    // Sign out immediately so we can create the next account
+    await firebase.auth().signOut();
+    log(`✓ Created account: ${username} (${role})`, 'ok');
+  } catch (e) {
+    if (e.code === 'auth/email-already-in-use') {
+      log(`⚠ Account already exists: ${username} — skipping`, 'info');
+    } else {
+      log(`✗ Failed to create ${username}: ${e.message}`, 'err');
+    }
+    // Make sure we're signed out before continuing
+    try { await firebase.auth().signOut(); } catch {}
+  }
+}
+
+// ─── Main setup routine ──────────────────────────────────────────────────────
+
+async function runSetup() {
+  const btn = document.getElementById('run-btn');
+  btn.disabled = true;
+  btn.textContent = 'Running…';
+
+  // ── 1. Create admin account ────────────────────────────────────────────────
+  log('━━━ Creating user accounts ━━━', 'info');
+  await createUser('admin', 'admin2026', 'admin', null, 'Administrator');
+
+  // ── 2. Create firefighter accounts ────────────────────────────────────────
+  for (const ff of FIREFIGHTERS) {
+    const username = ff.first.toLowerCase();
+    const password = 'bardia' + ff.id;
+    const name     = `${ff.first} ${ff.last}`;
+    await createUser(username, password, 'firefighter', ff.id, name);
+  }
+
+  // ── 3. Seed Firestore data ─────────────────────────────────────────────────
+  log('', 'info');
+  log('━━━ Seeding Firestore database ━━━', 'info');
+
+  const fdb = firebase.firestore();
+
+  // Firefighters
+  log('Writing firefighter records…', 'info');
+  const ffBatch = fdb.batch();
+  for (const ff of FIREFIGHTERS) {
+    ffBatch.set(fdb.collection('firefighters').doc(String(ff.id)), ff);
+  }
+  try {
+    await ffBatch.commit();
+    log(`✓ ${FIREFIGHTERS.length} firefighter records written`, 'ok');
+  } catch (e) {
+    log('✗ Firefighters: ' + e.message, 'err');
+  }
+
+  // Incidents
+  log('Writing incident records…', 'info');
+  const incBatch = fdb.batch();
+  for (const inc of INCIDENTS) {
+    incBatch.set(fdb.collection('incidents').doc(inc.id), inc);
+  }
+  try {
+    await incBatch.commit();
+    log(`✓ ${INCIDENTS.length} incident records written`, 'ok');
+  } catch (e) {
+    log('✗ Incidents: ' + e.message, 'err');
+  }
+
+  // Units
+  log('Writing unit records…', 'info');
+  const unitBatch = fdb.batch();
+  for (const u of UNITS) {
+    unitBatch.set(fdb.collection('units').doc(u.name.replace(/\s+/g, '_')), u);
+  }
+  try {
+    await unitBatch.commit();
+    log(`✓ ${UNITS.length} unit records written`, 'ok');
+  } catch (e) {
+    log('✗ Units: ' + e.message, 'err');
+  }
+
+  // Schedule + counters
+  log('Writing schedule and counters…', 'info');
+  try {
+    await fdb.collection('config').doc('schedule').set(SCHEDULE);
+    await fdb.collection('config').doc('counters').set({ incCounter: 848 });
+    log('✓ Schedule and counters written', 'ok');
+  } catch (e) {
+    log('✗ Config: ' + e.message, 'err');
+  }
+
+  // ── Done ──────────────────────────────────────────────────────────────────
+  log('', 'info');
+  log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'info');
+  log('✓ Setup complete! Redirecting to login…', 'ok');
+
+  btn.textContent = 'Done ✓';
+
+  setTimeout(() => {
+    window.location.href = 'index.html';
+  }, 3000);
+}
+</script>
+</body>
+</html>
